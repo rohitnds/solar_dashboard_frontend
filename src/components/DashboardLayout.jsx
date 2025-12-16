@@ -2,6 +2,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import {
   SidebarInset,
   SidebarProvider,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 import { apiDelete } from "@/lib/api";
@@ -10,12 +11,10 @@ import useAuthStore from "@/store/useAuthStore";
 import OrgModal from "./org-modal";
 import Header from "./Header";
 
-
 export default function DashboardLayout({ children, title = "Dashboard" }) {
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
   const auth = useAuthStore((state) => state.auth);
-
 
 
   return (
@@ -27,13 +26,11 @@ export default function DashboardLayout({ children, title = "Dashboard" }) {
         <Header title={title} />
 
         {/* MAIN CONTENT AREA */}
-        <div className="flex flex-1 flex-col gap-4 p-2 mt-21 pt-0">
           {children}
           {
             // !auth?.org?.org_id && (<OrgModal />)
           }
 
-        </div>
       </SidebarInset>
     </SidebarProvider>
   );

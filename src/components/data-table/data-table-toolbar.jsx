@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu.jsx';
 
-export const DataTableToolbar = ({ table, searchKey, children }) => {
+export const DataTableToolbar = ({ table, searchKey, children, hideColumnVisibility }) => {
   const searchColumn = searchKey ? table.getColumn(searchKey) : null;
   const isFiltered = table.getState().columnFilters.length > 0;
 
@@ -35,7 +35,10 @@ export const DataTableToolbar = ({ table, searchKey, children }) => {
           </Button>
         )}
       </div>
-      <DropdownMenu>
+
+      {
+        !hideColumnVisibility && (
+                <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="h-9">
             <SlidersHorizontal className="mr-2 h-4 w-4" />
@@ -57,6 +60,8 @@ export const DataTableToolbar = ({ table, searchKey, children }) => {
             ))}
         </DropdownMenuContent>
       </DropdownMenu>
+        )
+      }
     </div>
   );
 };

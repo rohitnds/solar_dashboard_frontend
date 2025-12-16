@@ -173,6 +173,7 @@ const tableRows = useMemo(() => {
 
 
   return (
+            <div className={`flex flex-1 flex-col gap-4 p-2 mt-21 pt-0`}>
     <div className="space-y-10">
 
       {/* Date Picker */}
@@ -201,6 +202,7 @@ const tableRows = useMemo(() => {
 
       {/* Table */}
       <DataTable columns={columns} data={tableRows} searchKey="site_name" />
+    </div>
     </div>
   );
 }

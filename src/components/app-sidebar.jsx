@@ -14,7 +14,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import useSitesStore from "@/store/useSitesStore";
 import { NavUser } from "./nav-user";
 import useOrgStore from "@/store/useOrgStore";
@@ -40,6 +40,9 @@ export function AppSidebar(props) {
       },
     ],
   };
+
+  const params = useParams();
+  console.log(params.siteId);
 
   // ---------------------------
   // SITES MENU (DYNAMIC)
@@ -94,7 +97,7 @@ export function AppSidebar(props) {
                           className="py-3"
                           asChild
                         >
-                          <Link to={item.url} className="font-medium flex gap-2">
+                          <Link to={item.url} className={`font-medium flex gap-2 ${params.siteId && params.siteId === item.url.split("/").pop() ? 'bg-sidebar-primary! text-sidebar-primary-foreground!' : ''}`}>
                             {item.Icon && <item.Icon className="h-4 w-4" />}
                             {item.title}
                           </Link>

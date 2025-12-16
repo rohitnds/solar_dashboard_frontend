@@ -30,6 +30,7 @@ export const DataTable = ({
   toolbarSlot,
   emptyState = "No records found.",
   initialPageSize = 10,
+  hideColumnVisibility = false,
 
   /* 🔥 NEW */
   manualPagination = false,
@@ -78,8 +79,8 @@ export const DataTable = ({
   });
 
   return (
-    <div className="space-y-3 w-full max-w-full min-w-0 overflow-hidden">
-      <DataTableToolbar table={table} searchKey={searchKey}>
+    <div className="space-y-3 w-full max-w-full w-[calc(100%-20rem)] min-w-0 overflow-hidden">
+      <DataTableToolbar table={table} searchKey={searchKey} hideColumnVisibility={hideColumnVisibility}>
         {toolbarSlot}
       </DataTableToolbar>
 

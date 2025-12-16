@@ -16,6 +16,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useSidebar } from "@/components/ui/sidebar";
 
 /* ---------------- Helpers ---------------- */
 
@@ -86,7 +87,7 @@ export default function SiteTable() {
   const units = useUnitStore((s) => s.units);
   const fetchUnits = useUnitStore((s) => s.fetchUnits);
   const { siteId } = useParams();
-
+  const { open } = useSidebar();
   const inverterUnits = useMemo(
     () => units.filter((u) => u.unit_type === "Inverter"),
     [units]
@@ -142,7 +143,7 @@ export default function SiteTable() {
 
   const columns = useMemo(() => {
     const cols = [
-      { accessorKey: "date", header: "Date", meta: { headerClassName: UNIT_BORDER_CLASS, className: UNIT_BORDER_CLASS } },
+      { accessorKey: "date", header: "Date", meta: { headerClassName: `${UNIT_BORDER_CLASS} sticky left-0 bg-white z-10`, className: `${UNIT_BORDER_CLASS} sticky left-0 bg-white z-10` } },
     ];
 
     inverterUnits.forEach((u) => {
@@ -215,17 +216,20 @@ export default function SiteTable() {
   /* ---------------- UI ---------------- */
 
   return (
+            <div className={`flex flex-1 flex-col gap-4 p-2 mt-21 pt-0 ${open ? 'w-[calc(100vw-20rem)]' : 'w-full'}`}>
     <div className="space-y-4">
+      <h2 className="font-semibold text-xl mt-5">DGR Sheet</h2>
       <DataTable
         data={dataForTable}
         columns={columns}
         loading={loading}
         manualPagination
         hidePagination
+        hideColumnVisibility = {true}
       />
 
-      <div className="flex justify-between border-t pt-3">
-        <div className="flex items-center gap-2 text-sm">
+      <div className={`flex justify-between border-t pt-3 ${open ? 'w-[calc(100vw-20rem)]' : 'w-full'}`}>
+        <div className="flex items-center gap-2 text-sm invisible">
           <span className="font-medium">Page:</span>
           <span>{pageIndex + 1}</span>
         </div>
@@ -242,7 +246,7 @@ export default function SiteTable() {
           <Button
             variant="outline"
             size="sm"
-            disabled={loading}
+            disabled={loading || pageIndex + 1 >= totalDays / pageSize}
             onClick={() => nextPage({ siteId })}
           >
             Next <ChevronRight className="h-4 w-4 ml-1" />
@@ -260,16 +264,20 @@ export default function SiteTable() {
                 <SelectValue placeholder={`${pageSize} / page`} />
               </SelectTrigger>
               <SelectContent>
-                {[10, 20, 50].map((s) => (
-                  <SelectItem key={s} value={String(s)}>
-                    {s} / page
-                  </SelectItem>
-                ))}
+                {[10, totalDays > 10 && 20, totalDays > 50 && 50]
+  .filter(Boolean) // removes false, null, undefined
+  .map((s) => (
+    <SelectItem key={s} value={String(s)}>
+      {s} / page
+    </SelectItem>
+))}
+
               </SelectContent>
             </Select>
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }

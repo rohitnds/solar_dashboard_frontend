@@ -31,7 +31,7 @@ const Header = ({title}) => {
         console.log("Sidebar context:", open)
     }, [open]);
   return (
-<div className={`fixed top-0 right-0 ${open ? 'w-[calc(100vw-19rem)]' : 'w-full'}`}>
+<div className={`fixed top-0 right-0 ${open ? 'w-[calc(100vw-20rem)]' : 'w-full'}`}>
             <header className="flex h-16 shrink-0 items-center bg-sidebar justify-between m-2 border rounded-md gap-2 px-4 b">
           <div className="flex items-center shrink-0">
             <SidebarTrigger className="-ml-1" />
