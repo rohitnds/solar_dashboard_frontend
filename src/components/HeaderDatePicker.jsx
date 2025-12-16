@@ -19,6 +19,14 @@ const toUnix = (d) => Math.floor(d.getTime() / 1000);
 const getYesterday = () => {
   const d = new Date();
   d.setDate(d.getDate() - 1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const normalizeDate = (date) => {
+  if (!date) return null;
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
   return d;
 };
 
@@ -26,7 +34,7 @@ const getLastWeekRange = () => {
   const to = getYesterday();
   const from = new Date(to);
   from.setDate(from.getDate() - 6);
-  return { from, to };
+  return { from: normalizeDate(from), to };
 };
 
 /* ---------------- Component ---------------- */
@@ -76,17 +84,22 @@ export default function HeaderDatePicker() {
   const handleSelect = (value) => {
     if (!value?.from || !value?.to) return;
 
-    setRange(value);
+    const normalized = {
+      from: normalizeDate(value.from),
+      to: normalizeDate(value.to),
+    };
+
+    setRange(normalized);
 
     if (siteId) {
       fetchSiteDgr({
         siteId,
-        from: toUnix(value.from),
-        to: toUnix(value.to),
+        from: toUnix(normalized.from),
+        to: toUnix(normalized.to),
       });
     } else {
       // ❗ DO NOT change this
-      fetchFleetData(value.from, value.to);
+      fetchFleetData(normalized.from, normalized.to);
     }
   };
 
@@ -95,11 +108,16 @@ export default function HeaderDatePicker() {
   const shiftRange = (days) => {
     if (!range?.from || !range?.to) return;
 
-    const from = new Date(range.from);
-    const to = new Date(range.to);
+    // Normalize to start-of-day and move strictly by 86400s to avoid DST drift
+    const baseFrom = normalizeDate(range.from);
+    const baseTo = normalizeDate(range.to);
 
-    from.setDate(from.getDate() + days);
-    to.setDate(to.getDate() + days);
+    const shiftSeconds = days * 86400;
+    const fromSeconds = toUnix(baseFrom) + shiftSeconds;
+    const toSeconds = toUnix(baseTo) + shiftSeconds;
+
+    const from = new Date(fromSeconds * 1000);
+    const to = new Date(toSeconds * 1000);
 
     if (to > YESTERDAY) return;
 
@@ -109,8 +127,8 @@ export default function HeaderDatePicker() {
     if (siteId) {
       fetchSiteDgr({
         siteId,
-        from: toUnix(from),
-        to: toUnix(to),
+        from: fromSeconds,
+        to: toSeconds,
       });
     } else {
       // ❗ DO NOT change this

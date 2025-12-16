@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { useSiteDgrStore } from "@/store/useSiteDgrStore";
 import { useUnitStore } from "@/store/useSiteUnitsStore";
@@ -28,8 +28,45 @@ const formatDate = (ts) => {
   ).padStart(2, "0")}-${String(istDate.getDate()).padStart(2, "0")}`;
 };
 
-const getMetricValue = (row, unitId, metric) =>
-  row?.value?.[unitId]?.[metric] ?? null;
+const getMetricValue = (value, unitId, metric) =>
+  value?.[unitId]?.[metric] ?? null;
+
+const INVERTER_METRICS = ["generation", "dcCapacity", "generationPerKw"];
+const METER_METRICS = [
+  "totalExport",
+  "totalImport",
+  "totalReactiveExport",
+  "totalReactiveImport",
+  "netExport",
+  "netImport",
+  "netReactiveExport",
+  "netReactiveImport",
+  "netGeneration",
+];
+const TOTAL_FIELDS = ["totalGeneration", "site_capacity", "totalGenerationPerKw"];
+const FINAL_FIELDS = ["cufGen", "prGen", "cufNetExport", "tlLoss"];
+const UNIT_BORDER_CLASS = "border-r border-border";
+const metricLabels = {
+  generation: "Generation",
+  dcCapacity: "DC Capacity",
+  generationPerKw: "Generation / kW",
+  totalExport: "Total Export",
+  totalImport: "Total Import",
+  totalReactiveExport: "Total Reactive Export",
+  totalReactiveImport: "Total Reactive Import",
+  netExport: "Net Export",
+  netImport: "Net Import",
+  netReactiveExport: "Net Reactive Export",
+  netReactiveImport: "Net Reactive Import",
+  netGeneration: "Net Generation",
+  totalGeneration: "Total Generation",
+  site_capacity: "Site Capacity",
+  totalGenerationPerKw: "Total Generation / kW",
+  cufGen: "CUF (Gen)",
+  prGen: "PR (Gen)",
+  cufNetExport: "CUF (Net Export)",
+  tlLoss: "TL Loss",
+};
 
 /* ---------------- Component ---------------- */
 
@@ -50,6 +87,15 @@ export default function SiteTable() {
   const fetchUnits = useUnitStore((s) => s.fetchUnits);
   const { siteId } = useParams();
 
+  const inverterUnits = useMemo(
+    () => units.filter((u) => u.unit_type === "Inverter"),
+    [units]
+  );
+  const meterUnits = useMemo(
+    () => units.filter((u) => u.unit_type === "Meter"),
+    [units]
+  );
+
   /* ---------------- Fetching ---------------- */
 
   useEffect(() => {
@@ -58,247 +104,118 @@ export default function SiteTable() {
     fetchUnits(siteId);
   }, [siteId]);
 
-  /* ---------------- Metrics ---------------- */
-
-  const metrics = useMemo(() => {
-    const set = new Set();
-    siteDgrRows.forEach((row) => {
-      Object.values(row.value || {}).forEach((m) => {
-        if (m && typeof m === "object") {
-          Object.keys(m)
-            .filter((k) => isNaN(k))
-            .forEach((k) => set.add(k));
-        }
-      });
-    });
-    return Array.from(set);
-  }, [siteDgrRows]);
-
-  /* ---------------- View State ---------------- */
-
-  const [viewMode, setViewMode] = useState("SINGLE_METRIC_ALL_UNITS");
-  const [selectedMetric, setSelectedMetric] = useState(null);
-  const [selectedUnitId, setSelectedUnitId] = useState(null);
-
-  useEffect(() => {
-    if (!selectedMetric && metrics.length) {
-      setSelectedMetric(metrics[0]);
-    }
-  }, [metrics]);
-
-  useEffect(() => {
-    if (!selectedUnitId && units.length) {
-      setSelectedUnitId(units[0].unit_id);
-    }
-  }, [units]);
-
-  /* ---------------- Unit type maps ---------------- */
-
-  const unitTypeById = useMemo(() => {
-    const map = {};
-    units.forEach((u) => (map[u.unit_id] = u.unit_type));
-    return map;
-  }, [units]);
-
-  const METRIC_UNIT_TYPE_MAP = useMemo(() => {
-    const map = {};
-    siteDgrRows.forEach((row) => {
-      Object.entries(row.value || {}).forEach(([unitId, metricsObj]) => {
-        const type = unitTypeById[unitId];
-        if (!type || !metricsObj) return;
-
-        Object.keys(metricsObj)
-          .filter((k) => isNaN(k))
-          .forEach((metric) => {
-            if (!map[metric]) map[metric] = new Set();
-            map[metric].add(type);
-          });
-      });
-    });
-
-    return Object.fromEntries(
-      Object.entries(map).map(([k, v]) => [k, Array.from(v)])
-    );
-  }, [siteDgrRows, unitTypeById]);
-
-  const siteUnitTypes = useMemo(
-    () => Array.from(new Set(units.map((u) => u.unit_type))),
-    [units]
-  );
-
-  /* ---------------- Filtered metrics (FIXED) ---------------- */
-
-  const filteredMetrics = useMemo(() => {
-    return metrics.filter((m) =>
-      METRIC_UNIT_TYPE_MAP[m]?.some((t) => siteUnitTypes.includes(t))
-    );
-  }, [metrics, METRIC_UNIT_TYPE_MAP, siteUnitTypes]);
-
   /* ---------------- Data ---------------- */
 
   const dataForTable = useMemo(() => {
     if (!siteDgrRows.length) return [];
     const safe = (v) => (v === null || v === undefined ? "-" : v);
 
-    // SINGLE METRIC · ALL UNITS
-    if (viewMode === "SINGLE_METRIC_ALL_UNITS") {
-      const compatibleUnits = units.filter((u) =>
-        METRIC_UNIT_TYPE_MAP[selectedMetric]?.includes(u.unit_type)
-      );
-
-      return siteDgrRows.map((row) => {
-        const r = { date: formatDate(row.timestamp) };
-        compatibleUnits.forEach((u) => {
-          r[u.unit_name] = safe(
-            getMetricValue(row, u.unit_id, selectedMetric)
-          );
-        });
-        return r;
-      });
-    }
-
-    // SINGLE UNIT · ALL METRICS
-    if (viewMode === "SINGLE_UNIT_ALL_METRICS") {
-      const unitType = unitTypeById[selectedUnitId];
-      const compatibleMetrics = filteredMetrics.filter((m) =>
-        METRIC_UNIT_TYPE_MAP[m]?.includes(unitType)
-      );
-
-      return siteDgrRows.map((row) => {
-        const r = { date: formatDate(row.timestamp) };
-        compatibleMetrics.forEach((m) => {
-          r[m] = safe(getMetricValue(row, selectedUnitId, m));
-        });
-        return r;
-      });
-    }
-
-    // ALL METRICS · ALL UNITS
     return siteDgrRows.map((row) => {
+      const value = row.value || {};
       const r = { date: formatDate(row.timestamp) };
-      units.forEach((u) => {
-        filteredMetrics.forEach((m) => {
-          if (METRIC_UNIT_TYPE_MAP[m]?.includes(u.unit_type)) {
-            r[`${u.unit_id}_${m}`] = safe(
-              getMetricValue(row, u.unit_id, m)
-            );
-          }
+
+      inverterUnits.forEach((u) => {
+        INVERTER_METRICS.forEach((m) => {
+          r[`${u.unit_id}__${m}`] = safe(getMetricValue(value, u.unit_id, m));
         });
       });
+
+      TOTAL_FIELDS.forEach((field) => {
+        r[field] = safe(value[field]);
+      });
+
+      meterUnits.forEach((u) => {
+        METER_METRICS.forEach((m) => {
+          r[`${u.unit_id}__${m}`] = safe(getMetricValue(value, u.unit_id, m));
+        });
+      });
+
+      FINAL_FIELDS.forEach((field) => {
+        r[field] = safe(value[field]);
+      });
+
       return r;
     });
-  }, [
-    siteDgrRows,
-    units,
-    filteredMetrics,
-    selectedMetric,
-    selectedUnitId,
-    viewMode,
-  ]);
+  }, [siteDgrRows, inverterUnits, meterUnits]);
 
   /* ---------------- Columns ---------------- */
 
   const columns = useMemo(() => {
-    if (!units.length) return [];
-
-    if (viewMode === "SINGLE_METRIC_ALL_UNITS") {
-      const compatibleUnits = units.filter((u) =>
-        METRIC_UNIT_TYPE_MAP[selectedMetric]?.includes(u.unit_type)
-      );
-
-      return [
-        { accessorKey: "date", header: "Date" },
-        ...compatibleUnits.map((u) => ({
-          accessorKey: u.unit_name,
-          header: u.unit_name,
-        })),
-      ];
-    }
-
-    if (viewMode === "SINGLE_UNIT_ALL_METRICS") {
-      const unitType = unitTypeById[selectedUnitId];
-      return [
-        { accessorKey: "date", header: "Date" },
-        ...filteredMetrics
-          .filter((m) => METRIC_UNIT_TYPE_MAP[m]?.includes(unitType))
-          .map((m) => ({ accessorKey: m, header: m })),
-      ];
-    }
-
-    return [
-      { accessorKey: "date", header: "Date" },
-      ...filteredMetrics.map((m) => ({
-        header: m,
-        columns: units
-          .filter((u) => METRIC_UNIT_TYPE_MAP[m]?.includes(u.unit_type))
-          .map((u) => ({
-            accessorKey: `${u.unit_id}_${m}`,
-            header: u.unit_name,
-          })),
-      })),
+    const cols = [
+      { accessorKey: "date", header: "Date", meta: { headerClassName: UNIT_BORDER_CLASS, className: UNIT_BORDER_CLASS } },
     ];
-  }, [
-    viewMode,
-    units,
-    filteredMetrics,
-    selectedMetric,
-    selectedUnitId,
-  ]);
+
+    inverterUnits.forEach((u) => {
+      cols.push({
+        header: u.unit_name || u.unit_id,
+        meta: { headerClassName: UNIT_BORDER_CLASS },
+        columns: INVERTER_METRICS.map((m, idx) => ({
+          accessorKey: `${u.unit_id}__${m}`,
+          header: metricLabels[m] || m,
+          meta:
+            idx === INVERTER_METRICS.length - 1
+              ? { className: UNIT_BORDER_CLASS }
+              : {},
+        })),
+      });
+    });
+
+    TOTAL_FIELDS.forEach((field) => {
+      cols.push({
+        accessorKey: field,
+        header: metricLabels[field] || field,
+      });
+    });
+
+    meterUnits.forEach((u) => {
+      // separator before meter group starts
+      if (u === meterUnits[0]) {
+        cols.push({
+          accessorKey: "__separator_meters",
+          header: "",
+          meta: { headerClassName: UNIT_BORDER_CLASS, className: UNIT_BORDER_CLASS },
+          cell: () => null,
+        });
+      }
+
+      cols.push({
+        header: u.unit_name || u.unit_id,
+        meta: { headerClassName: UNIT_BORDER_CLASS },
+        columns: METER_METRICS.map((m, idx) => ({
+          accessorKey: `${u.unit_id}__${m}`,
+          header: metricLabels[m] || m,
+          meta:
+            idx === METER_METRICS.length - 1
+              ? { className: UNIT_BORDER_CLASS }
+              : {},
+        })),
+      });
+    });
+
+    // Border before final non-unit fields
+    if (FINAL_FIELDS.length) {
+      cols.push({
+        accessorKey: "__separator_final",
+        header: "",
+        meta: { headerClassName: UNIT_BORDER_CLASS, className: UNIT_BORDER_CLASS },
+        cell: () => null,
+      });
+    }
+
+    FINAL_FIELDS.forEach((field) => {
+      cols.push({
+        accessorKey: field,
+        header: metricLabels[field] || field,
+      });
+    });
+
+    return cols;
+  }, [inverterUnits, meterUnits]);
 
   /* ---------------- UI ---------------- */
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-4">
-        <Select value={viewMode} onValueChange={setViewMode}>
-          <SelectTrigger className="w-[240px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="SINGLE_METRIC_ALL_UNITS">
-              Single Metric · All Units
-            </SelectItem>
-            <SelectItem value="SINGLE_UNIT_ALL_METRICS">
-              Single Unit · All Metrics
-            </SelectItem>
-            <SelectItem value="ALL_METRICS_ALL_UNITS">
-              All Metrics · All Units
-            </SelectItem>
-          </SelectContent>
-        </Select>
-
-{viewMode === "SINGLE_METRIC_ALL_UNITS" && (
-  <Select value={selectedMetric} onValueChange={setSelectedMetric}>
-    <SelectTrigger className="w-[220px]">
-      <SelectValue placeholder="Select Metric" />
-    </SelectTrigger>
-    <SelectContent>
-      {filteredMetrics.map((m) => (
-        <SelectItem key={m} value={m}>
-          {m}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-)}
-
-{viewMode === "SINGLE_UNIT_ALL_METRICS" && (
-  <Select value={selectedUnitId} onValueChange={setSelectedUnitId}>
-    <SelectTrigger className="w-[220px]">
-      <SelectValue placeholder="Select Unit" />
-    </SelectTrigger>
-    <SelectContent>
-      {units.map((u) => (
-        <SelectItem key={u.unit_id} value={u.unit_id}>
-          {u.unit_name}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-)}
-
-      </div>
-
       <DataTable
         data={dataForTable}
         columns={columns}
@@ -308,8 +225,11 @@ export default function SiteTable() {
       />
 
       <div className="flex justify-between border-t pt-3">
-        <div>Page {pageIndex + 1}</div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="font-medium">Page:</span>
+          <span>{pageIndex + 1}</span>
+        </div>
+        <div className="flex items-center gap-3">
           <Button
             variant="outline"
             size="sm"
@@ -322,27 +242,32 @@ export default function SiteTable() {
           <Button
             variant="outline"
             size="sm"
-            disabled={(pageIndex + 1) * pageSize >= totalDays}
+            disabled={loading}
             onClick={() => nextPage({ siteId })}
           >
             Next <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
 
-          <Select
-            value={String(pageSize)}
-            onValueChange={(v) =>
-              setPageSize({ siteId, newSize: Number(v) })
-            }
-          >
-            <SelectTrigger className="h-8 w-[100px]" />
-            <SelectContent>
-              {[10, 20, 50].map((s) => (
-                <SelectItem key={s} value={String(s)}>
-                  {s} / page
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Per page:</span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) =>
+                setPageSize({ siteId, newSize: Number(v) })
+              }
+            >
+              <SelectTrigger className="h-8 w-[100px]">
+                <SelectValue placeholder={`${pageSize} / page`} />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50].map((s) => (
+                  <SelectItem key={s} value={String(s)}>
+                    {s} / page
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
     </div>

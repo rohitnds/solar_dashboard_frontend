@@ -7,10 +7,11 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    dedupe: ["react", "react-dom"],
   },
   server: {
     port: 3000,
     host: true,
-    allowedHosts: ["this.app.test"]
+    allowedHosts: ["this.app.test"],
   },
 });

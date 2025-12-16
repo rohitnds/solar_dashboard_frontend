@@ -78,24 +78,27 @@ export const DataTable = ({
   });
 
   return (
-    <div className={`space-y-3 ${open ? 'w-[calc(100vw-rem)]' : 'w-full'}`}>
+    <div className="space-y-3 w-full max-w-full min-w-0 overflow-hidden">
       <DataTableToolbar table={table} searchKey={searchKey}>
         {toolbarSlot}
       </DataTableToolbar>
 
-      <div className="rounded-xl border bg-card overflow-auto">
-        <Table>
+      <div className="rounded-xl border bg-card overflow-x-auto overflow-y-hidden w-full max-w-full min-w-0">
+        <Table className="w-full min-w-max">
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
                 {hg.headers.map((header) => {
                   const isSorted = header.column.getIsSorted();
+                  const meta = header.column.columnDef.meta || {};
+                  const headerClass =
+                    meta.headerClassName || meta.className || "";
                   return (
                     <TableHead
                       key={header.id}
                       colSpan={header.colSpan}
                       onClick={header.column.getToggleSortingHandler()}
-                      className="cursor-pointer select-none"
+                      className={`cursor-pointer select-none ${headerClass}`}
                     >
                       {!header.isPlaceholder && (
                         <div className="flex items-center gap-1">
@@ -118,14 +121,18 @@ export const DataTable = ({
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const meta = cell.column.columnDef.meta || {};
+                    const cellClass = meta.cellClassName || meta.className || "";
+                    return (
+                      <TableCell key={cell.id} className={cellClass}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))
             ) : (

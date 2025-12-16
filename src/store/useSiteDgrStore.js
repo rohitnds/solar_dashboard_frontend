@@ -40,13 +40,10 @@ export const useSiteDgrStore = create((set, get) => ({
   },
 
   nextPage: ({ siteId }) => {
-    const { pageIndex, pageSize, totalDays, from, to } = get();
-    const maxPage = Math.ceil(totalDays / pageSize) - 1;
-    if (pageIndex < maxPage) {
-      const nextPageIndex = pageIndex + 1;
-      set({ pageIndex: nextPageIndex });
-      get().fetchSiteDgr({ siteId, from, to, page: nextPageIndex, per: pageSize });
-    }
+    const { pageIndex, pageSize, from, to } = get();
+    const nextPageIndex = pageIndex + 1;
+    set({ pageIndex: nextPageIndex });
+    get().fetchSiteDgr({ siteId, from, to, page: nextPageIndex, per: pageSize });
   },
 
   prevPage: ({ siteId }) => {
